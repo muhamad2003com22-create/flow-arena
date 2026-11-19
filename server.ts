@@ -25,8 +25,30 @@ import type {
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const DATA_DIR = path.resolve(__dirname, 'data');
-const DB_PATH = path.join(DATA_DIR, 'game-db.json');
+
+function getDbPaths() {
+  const isVercel = Boolean(process.env.VERCEL || process.env.LAMBDA_TASK_ROOT);
+  const dataDir = isVercel ? '/tmp' : path.resolve(__dirname, 'data');
+  const dbPath = path.join(dataDir, 'game-db.json');
+
+  if (isVercel && !fs.existsSync(dbPath)) {
+    const seedCandidates = [
+      path.join(process.cwd(), 'data', 'game-db.json'),
+      path.join(__dirname, 'data', 'game-db.json'),
+      path.join(__dirname, '..', 'data', 'game-db.json'),
+    ];
+    for (const seed of seedCandidates) {
+      if (fs.existsSync(seed)) {
+        try {
+          fs.copyFileSync(seed, dbPath);
+          break;
+        } catch {}
+      }
+    }
+  }
+
+  return { dataDir, dbPath };
+}
 
 interface StoredUser {
   id: string;
@@ -235,12 +257,13 @@ let dbCache: DatabaseSchema | null = null;
 
 function loadDb(): DatabaseSchema {
   if (dbCache) return dbCache;
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const { dataDir, dbPath } = getDbPaths();
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
   }
-  if (fs.existsSync(DB_PATH)) {
+  if (fs.existsSync(dbPath)) {
     try {
-      const raw = fs.readFileSync(DB_PATH, 'utf-8');
+      const raw = fs.readFileSync(dbPath, 'utf-8');
       const parsed = JSON.parse(raw) as Partial<DatabaseSchema>;
       if (parsed && Array.isArray(parsed.users) && Array.isArray(parsed.levels) && parsed.sessionSecret) {
         let migrated = false;
@@ -288,13 +311,14 @@ function loadDb(): DatabaseSchema {
 }
 
 function saveDb(db: DatabaseSchema): void {
-  if (!fs.existsSync(DATA_DIR)) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
+  const { dataDir, dbPath } = getDbPaths();
+  if (!fs.existsSync(dataDir)) {
+    fs.mkdirSync(dataDir, { recursive: true });
   }
   const suffix = crypto.randomBytes(4).toString('hex');
-  const tmpPath = `${DB_PATH}.${process.pid}.${suffix}.tmp`;
+  const tmpPath = `${dbPath}.${process.pid}.${suffix}.tmp`;
   fs.writeFileSync(tmpPath, JSON.stringify(db, null, 2), 'utf-8');
-  fs.renameSync(tmpPath, DB_PATH);
+  fs.renameSync(tmpPath, dbPath);
 }
 
 interface TokenPayload {
@@ -423,7 +447,7 @@ function requireAdmin(req: AuthedRequest, res: Response, next: NextFunction): vo
   next();
 }
 
-async function startServer() {
+export async function createApp() {
   const app = express();
   app.use(express.json({ limit: '1mb' }));
   app.use(attachAuth);
@@ -974,28 +998,37 @@ async function startServer() {
   });
 
   // Frontend serving (Vite dev middleware vs production dist)
-  if (process.env.NODE_ENV !== 'production') {
-    const { createServer: createViteServer } = await import('vite');
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distDir = path.resolve(__dirname, 'dist');
-    app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
-      res.sendFile(path.join(distDir, 'index.html'));
-    });
+  if (!process.env.VERCEL && !process.env.LAMBDA_TASK_ROOT) {
+    if (process.env.NODE_ENV !== 'production') {
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: 'spa',
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distDir = path.resolve(__dirname, 'dist');
+      app.use(express.static(distDir));
+      app.get('*', (_req, res) => {
+        res.sendFile(path.join(distDir, 'index.html'));
+      });
+    }
   }
 
+  return app;
+}
+
+export async function startServer() {
+  const app = await createApp();
   const port = Number(process.env.PORT) || 3000;
   app.listen(port, '0.0.0.0', () => {
     console.log(`Flow Free Arena server running at http://localhost:${port}`);
   });
 }
 
-startServer().catch((err) => {
-  console.error('Failed to start server:', err);
-  process.exit(1);
-});
+if (!process.env.VERCEL && !process.env.LAMBDA_TASK_ROOT) {
+  startServer().catch((err) => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
+  });
+}
