@@ -1,0 +1,6 @@
+{
+  "name": "ڕێڕەوی ڕەنگ — Flow Free Arena",
+  "description": "وێبسایتی یاری Flow Free بە بەشەکانی ئاسان، مامناوەند و قورس، سیستەمی سکیل، لیستی پێشەنگان و پانێڵی ئەدمین.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

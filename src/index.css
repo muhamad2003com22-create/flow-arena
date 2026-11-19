@@ -1,0 +1,90 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-sans: 'Vazirmatn', system-ui, -apple-system, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --surface-canvas: #0e1218;
+    --surface-panel: #161c26;
+    --surface-well: #11161f;
+    --surface-raised: #1e2634;
+    --ink-primary: #f5f3ee;
+    --ink-secondary: #a1aab8;
+    --ink-muted: #6e7889;
+    --accent-gold: #e5a93c;
+    --accent-gold-strong: #f2be5c;
+    --accent-emerald: #10b981;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    background-color: var(--surface-canvas);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow-x: hidden;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font-family: inherit;
+  }
+}
+
+.font-mono-num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes node-settle {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.16);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-node-settle {
+  animation: node-settle 220ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes board-win-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.01);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.03);
+  }
+}
+
+.animate-win-flash {
+  animation: board-win-flash 520ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-node-settle,
+  .animate-win-flash {
+    animation: none !important;
+  }
+}
